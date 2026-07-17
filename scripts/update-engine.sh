@@ -37,7 +37,9 @@ for a in "$@"; do
     --apply) APPLY=1 ;;
     --with-rules) WITH_RULES=1 ;;
     -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
-    *) echo "❌ 不认识的参数: $a（用法见 --help）" >&2; exit 1 ;;
+    # ${a} 的花括号不能省：写成 "$a（…" 时 bash 在 UTF-8 下会把中文括号
+    # 一并当成变量名，去找不存在的 ${a（用法见} → set -u 直接崩成乱码（踩过）。
+    *) echo "❌ 不认识的参数: ${a}（用法见 --help）" >&2; exit 1 ;;
   esac
 done
 
@@ -72,10 +74,14 @@ git fetch -q upstream main || { echo "❌ 拉不到上游（检查网络）" >&2
 # 而这个 dry-run 正是用户用来决定要不要更新的画面，反了就是误导。
 CHANGED="$(git diff --name-only HEAD upstream/main -- "${ENGINE_PATHS[@]}" 2>/dev/null || true)"
 
+# CLAUDE.md 是灰区：不带 --with-rules 时不动它，但要提一句它与上游有差异。
+rules_differ() {
+  [ "$WITH_RULES" = "0" ] && ! git diff --quiet HEAD upstream/main -- CLAUDE.md 2>/dev/null
+}
+
 if [ -z "$CHANGED" ]; then
   echo "✅ 引擎已是最新，没有要更新的。"
-  [ "$WITH_RULES" = "0" ] && git diff --quiet HEAD upstream/main -- CLAUDE.md 2>/dev/null || \
-    { [ "$WITH_RULES" = "0" ] && echo "ℹ️  注：CLAUDE.md（规则正本）与上游有差异。若你没自己改过规则，可跑 --apply --with-rules 一并更新。"; }
+  rules_differ && echo "ℹ️  注：CLAUDE.md（规则正本）与上游有差异。若你没自己改过规则，可跑 --apply --with-rules 一并更新。"
   exit 0
 fi
 
@@ -88,8 +94,7 @@ if [ "$APPLY" = "0" ]; then
   echo ""
   echo "以上是 dry-run（没动任何文件）。确认无误后跑："
   echo "   ./scripts/update-engine.sh --apply"
-  [ "$WITH_RULES" = "0" ] && ! git diff --quiet HEAD upstream/main -- CLAUDE.md 2>/dev/null && \
-    echo "ℹ️  CLAUDE.md（规则正本）也与上游有差异，但默认不动它（怕覆盖你改过的规则）。要一起更新加 --with-rules。"
+  rules_differ && echo "ℹ️  CLAUDE.md（规则正本）也与上游有差异，但默认不动它（怕覆盖你改过的规则）。要一起更新加 --with-rules。"
   exit 0
 fi
 
