@@ -13,6 +13,17 @@ fi
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TASK_PATH="${1%/}"
 
+# 前置检查：git 身份必须配好。
+# 本脚本会先搬文件再 commit，等 commit 失败才发现就晚了——文件已经搬走、frontmatter 已改，
+# 用户却以为归档失败。所以在动任何东西之前先验，快速失败。
+cd "$ROOT"
+if ! git config user.email >/dev/null 2>&1 || ! git config user.name >/dev/null 2>&1; then
+  echo "❌ git 身份没配，归档会在最后 commit 时失败（而文件已经被搬走）。先跑：" >&2
+  echo "   git config --global user.name \"你的名字\"" >&2
+  echo "   git config --global user.email \"你的邮箱\"" >&2
+  exit 1
+fi
+
 if [ ! -d "${ROOT}/${TASK_PATH}" ]; then
   echo "❌ not found: ${TASK_PATH}" >&2
   exit 1
