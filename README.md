@@ -6,9 +6,13 @@
 
 ```bash
 git clone https://github.com/andyleimc-source/workmd.git
-cd workmd && rm -rf .git && git init
+cd workmd && git remote rename origin upstream
 ```
 然后跟你的 AI 说一句:「**读 INSTALL.md,帮我装一下**」。
+
+> `git remote rename origin upstream` 是为了**保住上游**——以后修了 bug,你一句 `./scripts/update-engine.sh --apply` 就能拿到,不用重新克隆。这个脚本只更新引擎(脚本/agent/模板/文档),**绝不碰你的 `projects/`、`archive/` 和各种 `progress.md`**。
+>
+> 想把自己的库备份到私有仓库:`git remote add origin <你的仓库地址> && git push -u origin main`。上游和你的备份互不干扰。
 
 ---
 
@@ -96,6 +100,7 @@ archive/P03-website-redesign/           ← 归档镜像同样的结构
 | `scripts/detect-done-projects.sh` | 只读体检:找出「21 天没提交 且 没有进行中任务」的项目 |
 | SessionStart hook | 每周至多一次,把上面的候选注入 AI 上下文,让它挑个不打断你的时机问一句 |
 | SessionEnd hook | 会话结束自动打 `[auto]` 快照 commit(安全网,不 push) |
+| `scripts/update-engine.sh` | 从上游拉引擎更新(脚本/agent/模板/文档),**只碰引擎不碰你的内容**;默认 dry-run |
 | `/inbox-triage` skill | 清 `inbox/` 草稿,逐条判归宿,你确认后才动手 |
 | `archive-auditor` agent | 说「体检知识库」触发,扫出该归档没归档、frontmatter 不一致等问题。只读 |
 | `CLAUDE.md` + `AGENTS.md` + `GEMINI.md` | **一份规则喂所有 AI CLI**:`CLAUDE.md` 是正本,`AGENTS.md` 是给别的 CLI 的薄壳,`GEMINI.md` 是软链 |
@@ -113,6 +118,8 @@ archive/P03-website-redesign/           ← 归档镜像同样的结构
 ./scripts/finish-task.sh projects/P03-.../tasks/T12-...   # 归档任务
 ./scripts/finish-project.sh P03                  # 整包归档（确认后再跑）
 ./scripts/detect-done-projects.sh                # 只读体检
+./scripts/update-engine.sh                       # 看上游有什么更新（dry-run）
+./scripts/update-engine.sh --apply               # 拉上游修复，不碰你的内容
 ```
 
 对 AI 说话就更简单了:「进行 P03」「T12 做完了,归档」「建个任务:改官网首页文案,挂 P03」。

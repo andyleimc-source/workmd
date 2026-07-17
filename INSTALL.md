@@ -25,11 +25,15 @@
 跑一下:
 
 ```bash
-ls projects/ && cat assets/codes.md | grep "下一个可用"
+ls projects/ && grep "下一个可用" assets/codes.md
 ```
 
 - 如果 `projects/` 下只有 `P00-misc`、下一个可用是 `P01`/`T01` → 全新仓库,继续。
-- 如果已经有别的项目 → **停下来问用户**:这是个已经在用的库,你是想重装还是只想补装某个外挂?别覆盖他的东西。
+- 如果已经有别的项目 → **停下来问用户**:这是个已经在用的库,你是想重装还是只想补装某个外挂?**别覆盖他的东西。** 他要是只想拿上游的最新修复,直接跳到:
+  ```bash
+  ./scripts/update-engine.sh            # 先看会改什么
+  ./scripts/update-engine.sh --apply    # 确认后应用（只碰引擎，不碰他的内容）
+  ```
 
 ### 第 1 步:核心自检(不问,直接做)
 
@@ -38,6 +42,13 @@ bash -n scripts/*.sh scripts/hooks/*.sh && echo "✅ 脚本语法 OK"
 python3 --version && perl -e 'print "✅ perl OK\n"'   # 脚本依赖这两个
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo "✅ 在 git 仓库里" || git init
 ```
+
+**保住上游连接**——以后上游修了 bug,用户跑一句脚本就能拿到,不用重新克隆。检查一下:
+```bash
+git remote get-url upstream >/dev/null 2>&1 && echo "✅ upstream 在" || \
+  { git remote rename origin upstream 2>/dev/null || git remote add upstream https://github.com/andyleimc-source/workmd.git; echo "✅ 已接上 upstream"; }
+```
+**别 `rm -rf .git`。** 上游还很新、还在修 bug,断了他就只能重新克隆。他想备份到自己的私有仓库的话,是 `git remote add origin <他的仓库>`,和 upstream 并存不冲突。
 
 **git 身份必须配好**,否则归档脚本会在最后 commit 时失败(而文件已经被搬走)。查一下,没配就**停下来问用户**要名字和邮箱,别替他编:
 ```bash
