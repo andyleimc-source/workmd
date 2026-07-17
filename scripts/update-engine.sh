@@ -93,9 +93,22 @@ if [ "$APPLY" = "0" ]; then
   exit 0
 fi
 
-# ── 应用前先确认工作区干净，否则你没提交的活会被卷进这次 commit
-if [ -n "$(git status --porcelain -- "${ENGINE_PATHS[@]}" 2>/dev/null)" ]; then
-  echo "⚠️  你在引擎文件里有未提交的改动，更新会覆盖它们。" >&2
+# ── 应用前先确认没有会被覆盖掉的本地改动。
+# 注意：判据不是「工作区脏」，而是「脏且内容与上游不一致」。
+# 因为引导路径（老版本用户先 git checkout upstream/main -- scripts/update-engine.sh
+# 把本脚本捞过来）会把该文件留在暂存区——它内容已经等于上游，覆盖它不会损失任何东西。
+# 单纯查 git status 会把这种情况误判成用户改动，把必经之路堵死（踩过）。
+RISKY=""
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  # 该文件当前内容已等于上游 → 是更新的一部分，不是用户的活，无风险
+  git diff --quiet upstream/main -- "$f" 2>/dev/null && continue
+  RISKY="${RISKY}   ${f}"$'\n'
+done <<< "$(git status --porcelain -- "${ENGINE_PATHS[@]}" 2>/dev/null | sed 's/^...//' | sed 's/.* -> //')"
+
+if [ -n "$RISKY" ]; then
+  echo "⚠️  下列引擎文件你改过且与上游不一致，更新会覆盖它们：" >&2
+  printf '%s' "$RISKY" >&2
   echo "   先 git commit 或 git stash，再重跑。" >&2
   exit 1
 fi
