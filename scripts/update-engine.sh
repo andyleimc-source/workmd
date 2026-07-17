@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# update-engine.sh [--apply] [--with-rules]
+# update-engine.sh [--apply] [--with-rules] [--force]
 # 从上游拉取「引擎」的更新（脚本、agent/skill、模板、文档），**绝不碰你的工作内容**。
 #
-#   ./scripts/update-engine.sh                    # 只看会改什么（dry-run，默认）
-#   ./scripts/update-engine.sh --apply            # 真的更新
+#   ./scripts/update-engine.sh                        # 只看会改什么（dry-run，默认）
+#   ./scripts/update-engine.sh --apply                # 真的更新
 #   ./scripts/update-engine.sh --apply --with-rules   # 连 CLAUDE.md（规则正本）一起更新
+#   ./scripts/update-engine.sh --apply --force        # 你改过引擎文件、确认可丢弃时
+#
+# 绝不触碰：projects/ archive/ inbox/ assets/codes.md 各种 progress.md/plan.md/
+#           decision.md/bug.md/handoff.md/.claude/settings.json/.mcp.json
 #
 # 为什么不直接 git pull：你的 progress.md / codes.md / projects/ 是你自己的内容，
 # 上游那几个是空模板。直接 pull 会在这些文件上撞出冲突，非常烦。本脚本只挑引擎文件。
@@ -32,11 +36,13 @@ cd "$ROOT"
 
 APPLY=0
 WITH_RULES=0
+FORCE=0
 for a in "$@"; do
   case "$a" in
     --apply) APPLY=1 ;;
     --with-rules) WITH_RULES=1 ;;
-    -h|--help) sed -n '2,10p' "$0"; exit 0 ;;
+    --force) FORCE=1 ;;
+    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
     # ${a} 的花括号不能省：写成 "$a（…" 时 bash 在 UTF-8 下会把中文括号
     # 一并当成变量名，去找不存在的 ${a（用法见} → set -u 直接崩成乱码（踩过）。
     *) echo "❌ 不认识的参数: ${a}（用法见 --help）" >&2; exit 1 ;;
@@ -98,23 +104,47 @@ if [ "$APPLY" = "0" ]; then
   exit 0
 fi
 
-# ── 应用前先确认没有会被覆盖掉的本地改动。
-# 注意：判据不是「工作区脏」，而是「脏且内容与上游不一致」。
-# 因为引导路径（老版本用户先 git checkout upstream/main -- scripts/update-engine.sh
-# 把本脚本捞过来）会把该文件留在暂存区——它内容已经等于上游，覆盖它不会损失任何东西。
-# 单纯查 git status 会把这种情况误判成用户改动，把必经之路堵死（踩过）。
+# ── 应用前：找出「你自己改过的引擎文件」，别拿上游版本静默盖掉。
+#
+# 判据必须是「你相对上游改了什么」，不能是「工作区脏不脏」（原来就是这么写的，完全失效）：
+# 本系统的 SessionEnd hook 会自动 commit 一切 —— 用户的定制在一个会话内必然被提交，
+# 之后 git status 就是干净的，防线永远不触发，定制被静默铲掉。踩过，且是最严重的一次。
+#
+# 正确算法：共同祖先(merge-base) → HEAD 之间对引擎文件的改动 = 你的自定义。
+# 再并上未提交的改动。其中「内容已等于上游」的排除掉（引导路径捞脚本会留下这种，
+# 覆盖它不损失任何东西）。
+BASE="$(git merge-base HEAD upstream/main 2>/dev/null || true)"
+
+if [ -z "$BASE" ]; then
+  # 与上游无共同祖先：多半是跑过 rm -rf .git && git init（老版 README 教的）。
+  # 这种情况分不清「你的定制」和「单纯版本旧」，只能如实说，交给用户拍板。
+  echo "⚠️  你的 git 历史与上游没有共同祖先（多半跑过 rm -rf .git）。" >&2
+  echo "   这种情况我分不出哪些引擎文件是你自己改的、哪些只是版本旧，" >&2
+  echo "   所以无法保证不覆盖你对引擎文件的定制。" >&2
+  echo "   你的 projects/ archive/ 和各 progress.md 不受影响（本脚本从不碰它们）。" >&2
+  echo "   确认要用上游版本覆盖引擎文件，加 --force 重跑：" >&2
+  echo "      ./scripts/update-engine.sh --apply --force" >&2
+  [ "$FORCE" = "1" ] || exit 1
+  echo "→ --force 已指定，继续。"
+fi
+
 RISKY=""
+CUSTOM="$( { [ -n "$BASE" ] && git diff --name-only "$BASE" HEAD -- "${ENGINE_PATHS[@]}" 2>/dev/null || true
+             git status --porcelain -- "${ENGINE_PATHS[@]}" 2>/dev/null | sed 's/^...//' | sed 's/.* -> //'
+           } | sort -u )"
 while IFS= read -r f; do
   [ -n "$f" ] || continue
-  # 该文件当前内容已等于上游 → 是更新的一部分，不是用户的活，无风险
+  # 该文件当前内容已等于上游 → 是更新的一部分，不是你的活，无风险
   git diff --quiet upstream/main -- "$f" 2>/dev/null && continue
   RISKY="${RISKY}   ${f}"$'\n'
-done <<< "$(git status --porcelain -- "${ENGINE_PATHS[@]}" 2>/dev/null | sed 's/^...//' | sed 's/.* -> //')"
+done <<< "$CUSTOM"
 
-if [ -n "$RISKY" ]; then
-  echo "⚠️  下列引擎文件你改过且与上游不一致，更新会覆盖它们：" >&2
+if [ -n "$RISKY" ] && [ "$FORCE" = "0" ]; then
+  echo "⚠️  下列引擎文件你自己改过，更新会用上游版本覆盖它们：" >&2
   printf '%s' "$RISKY" >&2
-  echo "   先 git commit 或 git stash，再重跑。" >&2
+  echo "" >&2
+  echo "   想留住你的改动：先备份出去（cp 到别处），更新后再手动并回来。" >&2
+  echo "   确认可以丢弃这些改动：./scripts/update-engine.sh --apply --force" >&2
   exit 1
 fi
 
