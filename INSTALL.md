@@ -49,16 +49,28 @@ git config user.name && git config user.email || echo "⚠️ 没配，问用户
 [ -L GEMINI.md ] || ln -sf AGENTS.md GEMINI.md
 ```
 
-**冒烟测试**——确认建/归档链路通。注意最后一步用 `git checkout` 复原,**别手动改 `assets/codes.md`**(手改极易让注册表和实际目录对不上,这是本系统最难查的一类问题):
+**冒烟测试**——确认建/归档链路通。下面这段是实测跑通的,**逐字照抄,别自己改写**:
+
 ```bash
-git add -A && git commit -q -m "pre-smoke-test baseline"   # 先存个干净基线
-./scripts/new-task.sh install-smoke-test                    # 应输出 [T01]
+git add -A && git commit -q -m "init: workmd 初始化"   # 这就是用户的第一个 commit，不用撤
+./scripts/new-task.sh install-smoke-test               # 应输出 [T01]
 ./scripts/detect-done-projects.sh; echo "（无输出=正常，新库没有停滞项目）"
-rm -rf projects/P00-misc/tasks/T01-*-install-smoke-test      # 删测试任务
-git checkout -- assets/codes.md                              # 注册表复原（关键：不要手改）
-git reset --soft HEAD~1                                      # 撤掉基线 commit，回到克隆时的干净状态
+rm -rf projects/P00-misc/tasks/T01-*-install-smoke-test  # 删掉测试任务
+git checkout HEAD -- assets/codes.md                     # 注册表复原
+git reset -q                                             # 清空暂存区
 ```
-跑完确认一下 `grep "下一个可用" assets/codes.md` 显示的是 `**P01** / **T01**`,是就告诉用户「链路通了,测试痕迹已清干净」。
+
+**两个必须照做的细节**(踩过):
+
+- 复原注册表必须写 `git checkout HEAD -- assets/codes.md`,**不能写 `git checkout -- assets/codes.md`**。`new-task.sh` 结尾会 `git add` 暂存 codes.md,而不带 `HEAD` 的 checkout 是从**暂存区**恢复的——等于拿被污染的版本盖回去,注册表退不回来,你还看不出来。
+- **永远别手动编辑 `assets/codes.md` 来"改回去"。** 注册表和实际目录一旦对不上,是这套系统里最难查的一类问题。
+
+验收:
+```bash
+grep "下一个可用" assets/codes.md   # 必须显示 **P01** / **T01**
+git status --porcelain             # 必须为空
+```
+两条都对才告诉用户「链路通了,测试痕迹已清干净」。**对不上就别嘴硬**,如实说哪步没过。
 
 ### 第 2 步:改成他自己的库(问他)
 
@@ -116,8 +128,10 @@ cp .mcp.json.example .mcp.json   # 若还没有
 
 ### 第 4 步:收尾
 
+第 1 步已经打过 init commit 了,这里把第 2 步改的定位/决策和装好的外挂再提一个:
+
 ```bash
-git add -A && git commit -m "[init] 初始化 workmd 知识库 + 按需装外挂"
+git add -A && git commit -m "[init] 填写系统定位 + 按需装外挂"
 ```
 
 然后给他一段**不超过 8 行**的总结:
