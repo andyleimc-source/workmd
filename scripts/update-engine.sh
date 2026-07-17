@@ -67,25 +67,28 @@ echo "→ 拉取上游…"
 git fetch -q upstream main || { echo "❌ 拉不到上游（检查网络）" >&2; exit 1; }
 
 # ── 算差异
-CHANGED="$(git diff --name-only upstream/main -- "${ENGINE_PATHS[@]}" 2>/dev/null || true)"
+# 注意方向：写 `git diff HEAD upstream/main` 而不是 `git diff upstream/main`。
+# 后者算的是「从上游到我」，+/- 号会整个反过来（上游新增的行显示成删除），
+# 而这个 dry-run 正是用户用来决定要不要更新的画面，反了就是误导。
+CHANGED="$(git diff --name-only HEAD upstream/main -- "${ENGINE_PATHS[@]}" 2>/dev/null || true)"
 
 if [ -z "$CHANGED" ]; then
   echo "✅ 引擎已是最新，没有要更新的。"
-  [ "$WITH_RULES" = "0" ] && git diff --quiet upstream/main -- CLAUDE.md 2>/dev/null || \
+  [ "$WITH_RULES" = "0" ] && git diff --quiet HEAD upstream/main -- CLAUDE.md 2>/dev/null || \
     { [ "$WITH_RULES" = "0" ] && echo "ℹ️  注：CLAUDE.md（规则正本）与上游有差异。若你没自己改过规则，可跑 --apply --with-rules 一并更新。"; }
   exit 0
 fi
 
 echo ""
 echo "══════ 引擎有更新 ══════"
-git diff --stat upstream/main -- "${ENGINE_PATHS[@]}"
+git diff --stat HEAD upstream/main -- "${ENGINE_PATHS[@]}"
 echo "════════════════════════"
 
 if [ "$APPLY" = "0" ]; then
   echo ""
   echo "以上是 dry-run（没动任何文件）。确认无误后跑："
   echo "   ./scripts/update-engine.sh --apply"
-  [ "$WITH_RULES" = "0" ] && ! git diff --quiet upstream/main -- CLAUDE.md 2>/dev/null && \
+  [ "$WITH_RULES" = "0" ] && ! git diff --quiet HEAD upstream/main -- CLAUDE.md 2>/dev/null && \
     echo "ℹ️  CLAUDE.md（规则正本）也与上游有差异，但默认不动它（怕覆盖你改过的规则）。要一起更新加 --with-rules。"
   exit 0
 fi
