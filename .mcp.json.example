@@ -1,0 +1,24 @@
+{
+  "_comment": "复制成 .mcp.json 后按需删改。.mcp.json 已在 .gitignore 里（含本机凭据路径，不进版本控制）。全部可选——不配也能用。",
+
+  "mcpServers": {
+    "ms365": {
+      "_comment": "Microsoft 365 / Outlook 邮件。先 npm i -g ms-365-mcp-server，首次调用走 OAuth 登录。",
+      "type": "stdio",
+      "command": "ms-365-mcp-server",
+      "args": ["--org-mode", "--preset", "mail"],
+      "env": {}
+    },
+
+    "google-analytics": {
+      "_comment": "GA4 数据。需自己在 GCP 建 service account 下载 json，并填你的 property id。",
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "google-analytics-mcp", "ga4-mcp-server"],
+      "env": {
+        "GOOGLE_APPLICATION_CREDENTIALS": "/path/to/your/credentials.json",
+        "GA4_PROPERTY_ID": "REPLACE_WITH_YOUR_PROPERTY_ID"
+      }
+    }
+  }
+}

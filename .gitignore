@@ -1,0 +1,32 @@
+.DS_Store
+*.swp
+.trash/
+node_modules/
+
+# 归档提醒的本地状态（每台设备各自维护，不同步）
+assets/.archive-nudge-state
+assets/.archive-nudge-snooze
+
+# 凭证（永不提交）
+.env
+secrets.local.env
+*.secrets.env
+*.pem
+*.key
+
+# 本机私有配置（.mcp.json 常含本地凭据路径，用 .mcp.json.example 做模板）
+.mcp.json
+.claude/settings.local.json
+
+# driver-builder 施工隔离 worktree（可选加装件，不纳入版本控制）
+.worktrees/
+
+# 大文件走网盘同步，不进 git（GitHub 单文件硬限制 100MiB）
+*.mp4
+*.MP4
+*.mov
+*.MOV
+*.avi
+*.mkv
+*.webm
+*.m4v
