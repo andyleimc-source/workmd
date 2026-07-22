@@ -90,9 +90,13 @@
 |------|------|
 | `./scripts/new-project.sh <slug>` | 分配下一个 P 号,建 `projects/P0X-<slug>/` |
 | `./scripts/new-task.sh <slug> [P0X\|项目目录名]` | 分配下一个 T 号(第二参数支持模糊匹配,省略则落 `P00-misc`) |
-| `./scripts/finish-task.sh <task-path>` | 归档单个任务到 `archive/` 镜像位置 |
+| `./scripts/finish-task.sh <task-path>` | 归档单个任务到 `archive/` 镜像位置(带交付证据硬门,见第七节) |
 | `./scripts/finish-project.sh <P0X>` | 整个项目收尾归档(**只在用户明确确认后跑**) |
 | `./scripts/detect-done-projects.sh` | 只读体检:列出疑似做完忘归档的项目 |
+| `./scripts/lessons.sh <关键词\|P0X>` | 只读:开工前把该域已踩过的坑顶出来 |
+| `./scripts/audit-evidence.sh` | 只读体检:抓已归档但交付证据没填的「虚标」 |
+
+**开工顶坑(教训固化)**:定位到某项目、或要开一个新任务前,先跑 `./scripts/lessons.sh <项目|关键词>`,把该域已经踩过的坑(文档里用 `⚠ / 坑 / 踩过 / 别再 / 禁止` 等词标记的行)从你的 `assets/docs/` 和该项目的 md 里顶到眼前——别靠 AI 临场回忆。写文档时记得给「别再犯」的点打上这些标记,它才抓得到。这是把「教训沉在文档里等人想起来」升级成「开工时机械顶出来」。
 
 ---
 
@@ -141,6 +145,8 @@ created: 2026-05-12
 **单个任务完成**(项目还在推进):
 1. 在任务 `progress.md` 末尾写 `## 完成 YYYY-MM-DD` 一句话总结
 2. 跑 `scripts/finish-task.sh <task-path>`:自动 `mv` 到 `archive/P0X-slug/tasks/`(镜像位置)、frontmatter 改 `status: done`、更新顶层 `progress.md`、git commit
+   - **交付证据硬门**:若「交付证据」小节还是占位(`> 有对外产出…`)没处理,脚本拒绝归档。有对外产出→填产出/落地确认/已知局限;纯内部任务→删那段占位说明;确认无需证据→加 `--no-evidence` 放行。定义:任务「完成」= 证据表明结果**在对方那边成立**,不是「我发出去了」。
+   - 想体检存量:`./scripts/audit-evidence.sh`(只读)扫已归档任务里交付证据没填的「虚标」。
 
 **整个项目收尾**:
 1. 项目 `progress.md` 末尾写完成总结

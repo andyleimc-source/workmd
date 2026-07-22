@@ -96,8 +96,10 @@ archive/P03-website-redesign/           ← 归档镜像同样的结构
 | 东西 | 是什么 |
 |------|--------|
 | `scripts/new-task.sh` / `new-project.sh` | 建新的,自动分配编号 + 登记注册表 + 填 frontmatter |
-| `scripts/finish-task.sh` / `finish-project.sh` | 归档到 `archive/` 镜像位置,改 status,更新索引,commit |
+| `scripts/finish-task.sh` / `finish-project.sh` | 归档到 `archive/` 镜像位置,改 status,更新索引,commit(finish-task 带交付证据硬门) |
 | `scripts/detect-done-projects.sh` | 只读体检:找出「21 天没提交 且 没有进行中任务」的项目 |
+| `scripts/lessons.sh <关键词\|P0X>` | 开工前把该域已踩过的坑从文档里顶出来,别靠 AI 临场回忆 |
+| `scripts/audit-evidence.sh` | 只读体检:抓已归档但「交付证据」没填的「虚标」 |
 | SessionStart hook | 每周至多一次,把上面的候选注入 AI 上下文,让它挑个不打断你的时机问一句 |
 | SessionEnd hook | 会话结束自动打 `[auto]` 快照 commit(安全网,不 push) |
 | `scripts/update-engine.sh` | 从上游拉引擎更新(脚本/agent/模板/文档),**只碰引擎不碰你的内容**;默认 dry-run |

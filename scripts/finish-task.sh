@@ -1,11 +1,23 @@
 #!/usr/bin/env bash
-# finish-task.sh <task-path>
+# finish-task.sh <task-path> [--no-evidence]
 # 归档单个任务到 archive/（镜像 projects/ 结构），更新 frontmatter，更新顶层 progress.md，git commit。
 # 结构规矩：一切任务都在 projects/P0X-slug/tasks/ 下 → 归档到 archive/P0X-slug/tasks/。
+# 交付证据硬门：若「交付证据」小节还是占位没处理，拒绝归档——有对外产出就填证据，
+#   纯内部任务就删占位说明，确认无需证据用 --no-evidence 放行。（定义：完成=对方那边成立）
 set -euo pipefail
 
+NO_EVIDENCE=0
+ARGS=()
+for a in "$@"; do
+  case "$a" in
+    --no-evidence) NO_EVIDENCE=1 ;;
+    *) ARGS+=("$a") ;;
+  esac
+done
+set -- "${ARGS[@]}"
+
 if [ $# -lt 1 ]; then
-  echo "usage: $0 <task-path>" >&2
+  echo "usage: $0 <task-path> [--no-evidence]" >&2
   echo "  e.g. $0 projects/P03-website-redesign/tasks/T12-2026-06-26-hero-copy" >&2
   exit 1
 fi
@@ -31,6 +43,16 @@ fi
 
 if [[ "$TASK_PATH" != projects/*/tasks/* ]]; then
   echo "❌ 任务必须在 projects/P0X-slug/tasks/ 下：${TASK_PATH}" >&2
+  exit 1
+fi
+
+# 交付证据硬门：占位说明还在 = 既没填证据也没删占位 → 拦下（借鉴 SAGE：完成时才卡硬门）
+PROG_CHECK="${ROOT}/${TASK_PATH}/progress.md"
+if [ "$NO_EVIDENCE" = "0" ] && [ -f "$PROG_CHECK" ] && grep -qF "有对外产出" "$PROG_CHECK"; then
+  echo "⛔ 「交付证据」还是占位没处理：${TASK_PATH}/progress.md" >&2
+  echo "   有对外产出 → 填上产出/落地确认/已知局限（完成 = 对方那边成立，不是「我发出去了」）" >&2
+  echo "   纯内部任务 → 删掉那段以 '> 有对外产出' 开头的占位说明" >&2
+  echo "   确认无需证据 → 重跑加 --no-evidence 放行" >&2
   exit 1
 fi
 
